@@ -8,8 +8,8 @@ start = False
 solenoid_list = []
 
 def Standard():
-    solenoid_list.append(SolenoidClass(vp.vec(-30,0,0), vp.vec(1,0,0), 10, 1, 1000, 100))
-    solenoid_list.append(SolenoidClass(vp.vec(30,0,0), vp.vec(1,0,0), 10, 1, 1000, 100))
+    solenoid_list.append(SolenoidClass(vp.vec(-30,0,0), vp.vec(1,0,0), 10, 1, 1000, 50))
+    solenoid_list.append(SolenoidClass(vp.vec(30,0,0), vp.vec(1,0,0), 10, 1, 1000, 50))
 
 vp.button(bind = Standard, text= 'standard for testing')
 
@@ -28,10 +28,10 @@ def Electron():
 vp.button(bind = Electron, text = 'create Electron')
 
 
-total_steps = 10000
+total_steps = 1000000
 q = -1.6e-19    
 m = 9.11e-31 
-dt = 1e-8
+dt = 8e-9
 mu_0 = 2*np.pi*1e-7
 paths = []
 
@@ -43,18 +43,35 @@ def Path_Calc():
         velocity = Electrons[i].velocity
         for j in range(1, total_steps):
             
-            B = vp.vec(0,0,0)
+            B1 = vp.vec(0,0,0)
             for solenoid in solenoid_list:
                 for k in range(solenoid.no_of_seg):
                     r = paths[i][j-1] - solenoid.segments[k].pos
                     dB = (mu_0 * solenoid.I /(4*np.pi)) * solenoid.segments[k].axis.cross(r) / r.mag**3
-                    B = B + dB
+                    B1 = B1 + dB
             
             
-            F = q * velocity.cross(B)
-            velocity += (F * dt) / m
+            a1 = (q * velocity.cross(B1))/m
+            k1v = a1 * dt
+            k1x = velocity * dt
+            #velocity += (F * dt) / m
+
+
+            B2 = vp.vec(0,0,0)
+            for solenoid in solenoid_list:
+                for k in range(solenoid.no_of_seg):
+                    r = paths[i][j-1] - solenoid.segments[k].pos + k1x/2
+                    dB = (mu_0 * solenoid.I /(4*np.pi)) * solenoid.segments[k].axis.cross(r) / r.mag**3
+                    B2 = B2 + dB
             
-            paths[i][j] = paths[i][j-1] + velocity*dt
+            
+            a2 = (q * (velocity+ k1v/2).cross(B2)) / m
+            k2v = a2 * dt
+            k2x = (velocity + k1v/2) * dt
+
+
+            velocity += k2v
+            paths[i][j] = paths[i][j-1] + k2x
     
     #print(paths)
     print('done')
@@ -78,7 +95,7 @@ while time < total_steps:
     if start == False:
         vp.sleep(1)
         continue
-    vp.rate(300)
+    vp.rate(500)
     
     for j in range(len(Electrons)):
         Electrons[j].pos = paths[j][time]
